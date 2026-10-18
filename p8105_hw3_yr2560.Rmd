@@ -1,0 +1,27 @@
+---
+title: "p8105_hw3_yr2560"
+author: "Yiman Rui"
+date: "2026-10-18"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(patchwork)
+library(p8105.datasets)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.asp = 0.6,
+  out.width = "95%"
+)
+
+theme_set(
+  theme_minimal() +
+    theme(legend.position = "bottom")
+)
+```
+
