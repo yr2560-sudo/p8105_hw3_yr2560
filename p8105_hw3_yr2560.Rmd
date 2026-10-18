@@ -25,3 +25,168 @@ theme_set(
 )
 ```
 
+## Problem 1
+
+### Description
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+ny_noaa
+
+# Missing data
+missing_sum =
+  ny_noaa |>
+  summarize(
+    across(
+      c(prcp, snow, snwd, tmax, tmin),
+      ~sum(is.na(.x))
+    )
+  ) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "n_missing"
+  ) |>
+  mutate(
+    pct_missing = 100 * n_missing / nrow(ny_noaa)
+  )
+
+missing_sum |>
+  knitr::kable(
+    digits = 2,
+    col.names = c(
+      "Variable",
+      "Missing Values",
+      "Percent Missing"
+    )
+  )
+```
+The `ny_noaa` dataset contains `r nrow(ny_noaa)` observations and `r ncol(ny_noaa)` variables from `r n_distinct(ny_noaa$id)` weather stations in New York State. Each row represents a daily weather observation at a particular station.
+
+The variables include station ID (`id`), observation date (`date`), precipitation (`prcp`), snowfall (`snow`), snow depth (`snwd`), maximum temperature (`tmax`), and minimum temperature (`tmin`).
+
+Missing values are present in the weather measurements, and their frequencies vary by variable. This is important because incomplete observations can affect the calculation of daily or monthly summaries. In the following analyses, missing values are excluded when calculating summary statistics.
+
+### Data Cleaning
+```{r}
+ny_noaa_clean =
+  ny_noaa |>
+  mutate(
+    year = lubridate::year(date),
+    month = lubridate::month(date),
+    day = lubridate::day(date),
+    tmax = as.numeric(tmax) / 10,
+    tmin = as.numeric(tmin) / 10,
+    prcp = prcp / 10
+  )
+
+ny_noaa_clean
+
+```
+
+### Commonly observed values
+```{r}
+snow_df =
+  ny_noaa_clean |>
+  filter(!is.na(snow)) |>
+  count(snow, sort = TRUE) |>
+  slice_head(n = 10)
+
+snow_df |>
+  knitr::kable(
+    col.names = c(
+      "Snowfall (mm)",
+      "Number of Observations"
+    )
+  )
+```
+The most commonly observed snowfall value is `r snow_df$snow[1]` mm, with `r snow_df$n[1]` observations. Zero snowfall is particularly common because most days do not experience measurable snowfall. Other frequently observed amounts may reflect standardized reporting increments and the conversion of measurements into millimeters.
+
+### Average max temperature in January and in July
+```{r}
+jan_jul_df =
+  ny_noaa_clean |>
+  filter(month %in% c(1, 7)) |>
+  group_by(id, year, month) |>
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE),
+    n_obs = sum(!is.na(tmax)),
+    .groups = "drop"
+  ) |>
+  filter(n_obs > 0) |>
+  mutate(
+    month = factor(
+      month,
+      levels = c(1, 7),
+      labels = c("January", "July")
+    )
+  )
+
+jan_jul_df |>
+  ggplot(
+    aes(x = year, y = mean_tmax, group = id)
+  ) +
+  geom_line(alpha = 0.15, color = "steelblue") +
+  geom_point(alpha = 0.15, size = 0.5) +
+  facet_grid(. ~ month) +
+  labs(
+    title = "Average Maximum Temperature by Station",
+    x = "Year",
+    y = "Average Maximum Temperature (°C)"
+  )
+
+jan_jul_df |>
+  group_by(month) |>
+  summarize(
+    minimum = min(mean_tmax),
+    maximum = max(mean_tmax),
+    .groups = "drop"
+  ) |>
+  knitr::kable(digits = 2)
+```
+The plot shows a clear seasonal difference, with average maximum temperatures generally ranging from -10°C to 10°C in January and 20°C to 35°C in July. January temperatures fluctuate more noticeably across years, while July temperatures remain relatively stable. There are also some unusual observations, such as a particularly low July temperature around 1988 and several extremely low January temperatures. Overall, there is no clear long-term increasing or decreasing trend, although temperature varies across stations and years.
+
+### Two-panel plots
+```{r fig.width=12, fig.height=10}
+p_temp =
+  ny_noaa_clean |>
+  filter(!is.na(tmax), !is.na(tmin)) |>
+  ggplot(aes(x = tmin, y = tmax)) +
+  geom_bin2d(bins = 50) +
+  scale_fill_viridis_c() +
+  labs(
+    title = "Maximum vs Minimum Temperature",
+    x = "Minimum Temperature (°C)",
+    y = "Maximum Temperature (°C)",
+    fill = "Count"
+  )
+
+p_snow =
+  ny_noaa_clean |>
+  filter(snow > 0, snow < 100) |>
+  ggplot(
+    aes(x = factor(year), y = snow)
+  ) +
+  geom_boxplot(
+    fill = "lightblue",
+    outlier.alpha = 0.2
+  ) +
+  labs(
+    title = "Distribution of Snowfall by Year",
+    x = "Year",
+    y = "Snowfall (mm)"
+  ) +
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      hjust = 1,
+      size = 7
+    )
+  )
+
+p_temp / p_snow
+```
+
+The histogram shows a strong positive relationship between minimum and maximum daily temperatures. Most observations are concentrated along an upward-sloping diagonal, indicating that higher minimum temperatures are generally associated with higher maximum temperatures. However, there are some extreme observations, including temperatures near -60°C and 60°C, which appear unusual for New York State and may indicate measurement or recording errors.
+
+The snowfall distributions are relatively consistent across years, with median snowfall remaining around 25 mm and similar interquartile ranges. Most observations fall between approximately 13 and 51 mm, although larger snowfall amounts occur occasionally. A few years, particularly 1998, 2006, and 2010, show some high outliers. Overall, the plot suggests that the distribution of positive daily snowfall amounts below 100 mm remained fairly stable across the study period.
