@@ -403,3 +403,92 @@ activity_time |>
 
 Activity levels are lowest during the early morning (around 4 AM), increase sharply after 6 AM, and remain relatively high throughout the day before declining at night. Women generally show higher daytime activity than men, particularly in the high school equivalent and more than high school education groups. In the less than high school group, activity patterns are more similar between sexes. Overall, all three education groups show similar daily activity cycles, but the magnitude and timing of activity peaks differ by sex and education level.
 
+## Problem 3
+
+Data import
+```{r}
+jan_2020 =
+  read_csv(
+    "Data/Jan 2020 Citi.csv",
+    show_col_types = FALSE
+  ) |>
+  mutate(
+    year = 2020,
+    month = "January"
+  )
+
+jul_2020 =
+  read_csv(
+    "Data/July 2020 Citi.csv",
+    show_col_types = FALSE
+  ) |>
+  mutate(
+    year = 2020,
+    month = "July"
+  )
+
+jan_2024 =
+  read_csv(
+    "Data/Jan 2024 Citi.csv",
+    show_col_types = FALSE
+  ) |>
+  mutate(
+    year = 2024,
+    month = "January"
+  )
+
+jul_2024 =
+  read_csv(
+    "Data/July 2024 Citi.csv",
+    show_col_types = FALSE
+  ) |>
+  mutate(
+    year = 2024,
+    month = "July"
+  )
+
+```
+
+Combine data
+```{r}
+citibike =
+  bind_rows(
+    jan_2020,
+    jul_2020,
+    jan_2024,
+    jul_2024
+  ) |>
+  mutate(
+    month = factor(
+      month,
+      levels = c("January", "July")
+    ),
+    weekdays = factor(
+      weekdays,
+      levels = c(
+        "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday", "Sunday"
+      )
+    ),
+    member_casual = factor(
+      member_casual,
+      levels = c("casual", "member"),
+      labels = c("Casual", "Member")
+    ),
+    rideable_type = factor(
+      rideable_type,
+      levels = c("classic_bike", "electric_bike"),
+      labels = c("Classic", "Electric")
+    )
+  )
+
+citibike
+```
+
+The combined dataset contains `r nrow(citibike)` rides and `r ncol(citibike)` variables. Each row represents one Citi Bike ride from the 1% sample of rides lasting less than four hours.
+
+The dataset includes ride ID, bike type, day of the week, ride duration in minutes, starting and ending stations, membership status, year, and month.
+
+There are some missing station names, but the ride duration and membership information are available for the observations used in the following analyses. Missing starting station names are excluded only when ranking the most popular starting stations.
+
+
