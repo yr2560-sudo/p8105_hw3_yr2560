@@ -278,3 +278,128 @@ After excluding participants younger than 21 and those with missing demographic 
 
 Participants with more than a high school education tended to be younger, with median ages around 41–44 years, compared with approximately 60–61 years for those with less than a high school education. In the high school equivalent group, women had a higher median age than men. Overall, age distributions varied more across education levels than between sexes.
 
+### Total daily activity
+```{r}
+nhanes_df =
+  nhanes_df |>
+  mutate(
+    total_activity = rowSums(
+      across(starts_with("min")),
+      na.rm = TRUE
+    )
+  )
+
+nhanes_df |>
+  select(seqn, age, sex, education, total_activity)
+
+# Plot age vs total_activity
+nhanes_df |>
+  ggplot(
+    aes(
+      x = age,
+      y = total_activity,
+      color = sex
+    )
+  ) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(se = FALSE) +
+  facet_wrap(~education, nrow = 1) +
+  labs(
+    title = "Total Daily Activity by Age",
+    x = "Age (years)",
+    y = "Total Daily Activity (MIMS)",
+    color = "Sex"
+  )
+
+activity_age_summary =
+  nhanes_df |>
+  mutate(
+    age_group = case_when(
+      age < 40 ~ "21–39",
+      age < 60 ~ "40–59",
+      TRUE ~ "60+"
+    )
+  ) |>
+  group_by(age_group) |>
+  summarize(
+    median_activity = median(total_activity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+activity_age_summary |>
+  knitr::kable(
+    digits = 2,
+    caption = "Median Daily Activity by Age Group"
+  )
+```
+
+Total daily activity generally decreased with age, particularly among participants older than 60. The trend was more noticeable in the lower education groups, while participants with more than a high school education showed relatively stable activity levels through middle age. There was considerable individual variation, and differences between men and women were not consistent across education groups.
+
+Median daily activity was similar for participants aged 21–39 (14,046.28 MIMS) and 40–59 (14,131.85 MIMS), but decreased to 10,417.80 MIMS among participants aged 60 or older. This suggests that older adults generally had lower daily physical activity, while younger and middle-aged participants had comparable activity levels.
+
+### 24-hour activity time courses
+```{r}
+nhanes_long =
+  nhanes_df |>
+  pivot_longer(
+    cols = starts_with("min"),
+    names_to = "minute",
+    values_to = "mims"
+  ) |>
+  mutate(
+    minute = as.numeric(
+      str_remove(minute, "min")
+    ) - 1
+  )
+
+# time summary
+activity_time =
+  nhanes_long |>
+  group_by(education, sex, minute) |>
+  summarize(
+    mean_mims = mean(mims, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+activity_time
+
+# Plots
+activity_time |>
+  ggplot(
+    aes(
+      x = minute,
+      y = mean_mims,
+      color = sex
+    )
+  ) +
+  geom_line(alpha = 0.3, linewidth = 0.4) +
+  geom_smooth(
+    se = FALSE,
+    span = 0.08,
+    linewidth = 1
+  ) +
+  facet_wrap(~education, nrow = 1) +
+  scale_x_continuous(
+    breaks = seq(0, 1440, by = 240),
+    labels = c(
+      "12 AM", "4 AM", "8 AM",
+      "12 PM", "4 PM", "8 PM", "12 AM"
+    ),
+    limits = c(0, 1440)
+  ) +
+  labs(
+    title = "24-Hour Activity Patterns",
+    x = "Time of Day",
+    y = "Mean Activity (MIMS)",
+    color = "Sex"
+  ) +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    )
+  )
+```
+
+Activity levels are lowest during the early morning (around 4 AM), increase sharply after 6 AM, and remain relatively high throughout the day before declining at night. Women generally show higher daytime activity than men, particularly in the high school equivalent and more than high school education groups. In the less than high school group, activity patterns are more similar between sexes. Overall, all three education groups show similar daily activity cycles, but the magnitude and timing of activity peaks differ by sex and education level.
+
